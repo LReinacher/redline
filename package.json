@@ -1,0 +1,143 @@
+{
+  "name": "redline",
+  "displayName": "Redline",
+  "description": "Code review inside your editor. Review a PR, a branch, or your staged or uncommitted changes as an inline diff in the real file, with full language features.",
+  "version": "0.2.0",
+  "publisher": "local",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LReinacher/redline.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "enabledApiProposals": [
+    "editorInsets"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      { "command": "redline.start", "title": "Start Review...", "category": "Redline", "icon": "$(diff)" },
+      { "command": "redline.reviewUncommitted", "title": "Review Uncommitted Changes", "category": "Redline" },
+      { "command": "redline.reviewStaged", "title": "Review Staged Changes", "category": "Redline" },
+      { "command": "redline.reviewBranch", "title": "Review Changes Against Branch...", "category": "Redline" },
+      { "command": "redline.reviewPullRequest", "title": "Review GitHub Pull Request...", "category": "Redline" },
+      { "command": "redline.end", "title": "End Review", "category": "Redline", "icon": "$(close)" },
+      { "command": "redline.refresh", "title": "Refresh", "category": "Redline", "icon": "$(refresh)" },
+      { "command": "redline.nextChange", "title": "Go to Next Change", "category": "Redline", "icon": "$(arrow-down)" },
+      { "command": "redline.previousChange", "title": "Go to Previous Change", "category": "Redline", "icon": "$(arrow-up)" },
+      { "command": "redline.revertChange", "title": "Revert Change Under Cursor", "category": "Redline" },
+      { "command": "redline.toggleDeletedLines", "title": "Toggle Inline Deleted Lines", "category": "Redline", "icon": "$(eye)" },
+      { "command": "redline.openNativeDiff", "title": "Open File in Diff Editor", "category": "Redline", "icon": "$(split-horizontal)" },
+      { "command": "redline.openFile", "title": "Open File", "category": "Redline" },
+      { "command": "redline.viewAsTree", "title": "View as Tree", "category": "Redline", "icon": "$(list-tree)" },
+      { "command": "redline.viewAsList", "title": "View as List", "category": "Redline", "icon": "$(list-flat)" }
+    ],
+    "views": {
+      "scm": [
+        { "id": "redline.files", "name": "Redline", "icon": "$(diff)" }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "redline.files",
+        "contents": "Review changes inside the real files, with go to definition and IntelliSense still working.\n[Uncommitted changes](command:redline.reviewUncommitted)\n[Staged changes](command:redline.reviewStaged)\n[Against a branch](command:redline.reviewBranch)\n[A GitHub pull request](command:redline.reviewPullRequest)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "redline.previousChange", "when": "view == redline.files && redline.active", "group": "navigation@1" },
+        { "command": "redline.nextChange", "when": "view == redline.files && redline.active", "group": "navigation@2" },
+        { "command": "redline.toggleDeletedLines", "when": "view == redline.files && redline.active", "group": "navigation@3" },
+        { "command": "redline.viewAsTree", "when": "view == redline.files && redline.active && !config.redline.viewAsTree", "group": "navigation@4" },
+        { "command": "redline.viewAsList", "when": "view == redline.files && redline.active && config.redline.viewAsTree", "group": "navigation@4" },
+        { "command": "redline.end", "when": "view == redline.files && redline.active", "group": "navigation@5" },
+        { "command": "redline.refresh", "when": "view == redline.files && redline.active", "group": "1_refresh" },
+        { "command": "redline.start", "when": "view == redline.files && !redline.active", "group": "navigation@1" }
+      ],
+      "view/item/context": [
+        { "command": "redline.openNativeDiff", "when": "view == redline.files && viewItem != folder", "group": "inline" }
+      ],
+      "editor/title": [
+        { "command": "redline.openNativeDiff", "when": "redline.active && redline.fileHasChanges", "group": "navigation" }
+      ],
+      "commandPalette": [
+        { "command": "redline.openFile", "when": "false" },
+        { "command": "redline.end", "when": "redline.active" },
+        { "command": "redline.refresh", "when": "redline.active" },
+        { "command": "redline.nextChange", "when": "redline.active" },
+        { "command": "redline.previousChange", "when": "redline.active" },
+        { "command": "redline.revertChange", "when": "redline.active" },
+        { "command": "redline.toggleDeletedLines", "when": "redline.active" },
+        { "command": "redline.openNativeDiff", "when": "redline.active" },
+        { "command": "redline.viewAsTree", "when": "!config.redline.viewAsTree" },
+        { "command": "redline.viewAsList", "when": "config.redline.viewAsTree" }
+      ]
+    },
+    "keybindings": [
+      { "command": "redline.nextChange", "key": "f7", "when": "redline.active && editorTextFocus && !isInDiffEditor" },
+      { "command": "redline.previousChange", "key": "shift+f7", "when": "redline.active && editorTextFocus && !isInDiffEditor" }
+    ],
+    "configurationDefaults": {
+      "comments.openView": "firstFileUnresolved"
+    },
+    "configuration": {
+      "title": "Redline",
+      "properties": {
+        "redline.deletedLines": {
+          "type": "string",
+          "enum": ["inline", "hover"],
+          "enumDescriptions": [
+            "Show removed lines in a block above the change, pushing the code below down.",
+            "Mark removed lines with a red line and show them on hover."
+          ],
+          "default": "inline",
+          "description": "How removed lines are shown in the editor."
+        },
+        "redline.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a CodeLens with a Revert action above each change."
+        },
+        "redline.viewAsTree": {
+          "type": "boolean",
+          "default": false,
+          "description": "Group the changed files by folder in the Redline view instead of listing them flat."
+        },
+        "redline.wordHighlights": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight the changed words inside modified lines."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js --sourcemap",
+    "build:integration": "esbuild test/integration/suite.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/integration/suite.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test test/*.test.ts",
+    "test:integration": "npm run build && npm run build:integration && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/integration/runTest.ts",
+    "package": "npm run build && npx @vscode/vsce package --out redline.vsix",
+    "install:cursor": "npm run package && cursor --install-extension redline.vsix --force",
+    "install:code": "npm run package && code --install-extension redline.vsix --force"
+  },
+  "dependencies": {
+    "diff": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "@types/vscode": "~1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}
