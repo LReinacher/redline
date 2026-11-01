@@ -143,7 +143,11 @@ export function activate(context: vscode.ExtensionContext) {
         .split('\n')
         .filter((line) => line && !line.endsWith('/HEAD'))
         .map((line) => line.split('\0')[0]);
-      const preferred = ['origin/main', 'origin/master', 'main', 'master'];
+      // origin/HEAD points at the remote's default branch, e.g. origin/dev. It is unset in some clones.
+      const remoteDefault = await git(root, 'symbolic-ref', '--short', 'refs/remotes/origin/HEAD')
+        .then((s) => s.trim())
+        .catch(() => '');
+      const preferred = [remoteDefault, 'origin/main', 'origin/master', 'main', 'master'].filter(Boolean);
       const rank = (ref: string) => (preferred.includes(ref) ? preferred.indexOf(ref) : preferred.length);
       refs.sort((a, b) => rank(a) - rank(b));
       ref = await vscode.window.showQuickPick(refs, { placeHolder: 'Show changes on this branch since it split from...' });
