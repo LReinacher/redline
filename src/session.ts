@@ -24,6 +24,9 @@ export class ReviewSession implements vscode.Disposable {
   baseSha = '';
   readonly id: string;
 
+  private refreshVersion = 0;
+  private forceRefresh = false;
+  private fingerprint: string | undefined;
   private byPath = new Map<string, ChangedFile>();
   private baseContents = new Map<string, Promise<string | undefined>>();
   private relPaths = new Map<string, string | undefined>();
@@ -44,14 +47,30 @@ export class ReviewSession implements vscode.Disposable {
     return this.target.kind !== 'staged';
   }
 
-  async refresh(): Promise<void> {
+  async refresh(force = false): Promise<void> {
+    this.forceRefresh ||= force;
+    const version = ++this.refreshVersion;
     const base = this.target.base ?? (await revParse(this.repoRoot, 'HEAD')) ?? EMPTY_TREE;
     const files = await this.listFiles(base);
+    files.sort((a, b) => a.path.localeCompare(b.path));
+    // Git emits status events for index refreshes and unrelated repository activity too.
+    // Compare file metadata as well as names so edits to an already-modified file still refresh.
+    const metadata = await Promise.all(files.map(async (file) => {
+      try {
+        const stat = await fs.promises.stat(path.join(this.repoRoot, file.path), { bigint: true });
+        return [stat.size.toString(), stat.mtimeNs.toString(), stat.ctimeNs.toString()];
+      } catch { return null; }
+    }));
+    if (version !== this.refreshVersion) return;
+    const fingerprint = JSON.stringify([base, files, metadata]);
+    const forced = this.forceRefresh;
+    this.forceRefresh = false;
+    if (!forced && fingerprint === this.fingerprint) return;
+    this.fingerprint = fingerprint;
     if (base !== this.baseSha) {
       this.baseContents.clear();
       this.baseSha = base;
     }
-    files.sort((a, b) => a.path.localeCompare(b.path));
     this.files = files;
     this.byPath = new Map(files.map((f) => [f.path, f]));
     this.changed.fire();
@@ -138,6 +157,7 @@ export class ReviewSession implements vscode.Disposable {
   }
 
   dispose(): void {
+    this.refreshVersion++;
     this.changed.dispose();
   }
 }

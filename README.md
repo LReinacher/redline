@@ -39,10 +39,14 @@ Without it, removed lines show as comment blocks, and the extension says so once
 - Removed lines appear in a red block above the change, with a **Revert** button after the first
   line. Set `redline.deletedLines` to `hover` to show them on hover instead.
 - Pure additions get a CodeLens with a **Revert** action.
-- The **Redline** view under Source Control lists the changed files, flat or grouped by
-  folder (the list/tree button in its title bar, or `redline.viewAsTree`). Each file has a
-  checkbox to mark it reviewed, and the checkboxes persist per workspace. Checking a folder marks
-  every file in it.
+- The **Redline** view under Source Control groups changed files into **Shape**, **Entry points**,
+  **Implementation**, and **Tests**, in reading order. The list/tree button (`redline.viewAsTree`)
+  switches between flat files and folders within each group. File review checkboxes persist per
+  workspace; checking a folder or group marks its files reviewed.
+- Expand a file to see symbols that overlap its changed lines. Click a symbol to jump to its
+  declaration. Symbols with no reported callers among the changed symbols get a **Change root** hint. Expand a symbol to inspect callers outside the
+  changed symbols, including unchanged functions in a changed file. A CodeLens opens those call
+  sites in the editor's references view (`redline.codeLens` controls both caller and Revert lenses).
 - Moved and renamed files show where they came from, like `← src/old/name.ts`, and are diffed
   against their old content. This includes files moved with a plain `mv` that git doesn't know
   about yet.
@@ -73,6 +77,53 @@ The file list refreshes on save and when git state changes. Open files refresh a
 To find moves that aren't staged, the extension copies the git index to a temp file, adds the
 untracked files to the copy as intent-to-add, and runs `git diff -M` against it. Your real index
 isn't touched.
+
+## Review guide
+
+Path-based grouping appears immediately. The view shows a progress bar and counts while finding
+symbols and tracing callers, then says **Ready to review** when the complete result is applied.
+Discovery uses three analysis workers with a five-second wait limit per provider request.
+
+Analysis updates the tree once when it finishes. During subsequent updates, the previous tree stays
+in place. Git status events that leave the review's base, file list, and file metadata unchanged do
+not restart discovery. Editing schedules a new snapshot after a short pause; the Refresh button
+forces discovery again even when the files are unchanged. Ending or switching reviews discards
+pending results. Deleted files remain reviewable against their base but have no current symbols
+to analyze.
+
+The **Entry points** group is selected by the repository's entry-point path patterns, such as
+resolvers, controllers, and routes. Mappers, services, use cases, and internal command/query handlers
+stay in **Implementation** unless the repository explicitly includes them in its entry patterns.
+A review can have no changed entry-point files when its public boundary is unchanged.
+
+A **Change root** hint means a changed callable has no reported incoming call from another changed
+symbol. It helps choose where to read within the change, but never promotes a file into **Entry
+points**. A mapper called by an unchanged base class or a CQRS handler dispatched through a bus can
+be a change root while remaining an internal implementation detail. Self recursion does not
+disqualify a root; mutually recursive functions may have no root. Framework dispatch, interfaces,
+and dynamic calls can leave edges missing. VS Code can also expose a provider failure as an empty
+caller list. Missing call hierarchy support produces no change-root hint. Files without symbol
+providers remain accessible normally.
+
+Defaults recognize GraphQL, Prisma, OpenAPI/Swagger, TypeScript entities/DTOs/models, migrations,
+resolver/controller files, route directories, and common JavaScript/TypeScript test names. Customize
+these arrays in workspace settings (`.vscode/settings.json`) for your repository. Each array
+replaces its defaults; `[]` disables its path rules. Tests take precedence, then Shape, then Entry
+points, then Implementation. Supported globs are `*`, `**`, `?`, and
+brace alternatives, relative to the repository root with `/` separators.
+
+```json
+{
+  "redline.reviewPatterns.shape": [
+    "**/*.{graphql,gql,prisma}",
+    "**/*.{entity,dto,model}.ts",
+    "**/contracts/**",
+    "**/migrations/**"
+  ],
+  "redline.reviewPatterns.entry": ["**/*.resolver.ts", "**/*.controller.ts"],
+  "redline.reviewPatterns.tests": ["**/*.{test,spec}.{ts,tsx}", "**/tests/**"]
+}
+```
 
 ## How removed lines are drawn
 

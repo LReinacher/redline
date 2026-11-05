@@ -333,6 +333,7 @@ export function activate(context: vscode.ExtensionContext) {
     { dispose: endSession },
     vscode.workspace.registerTextDocumentContentProvider(BASE_SCHEME, new BaseContentProvider(() => session?.repoRoot)),
     vscode.languages.registerCodeLensProvider({ scheme: 'file' }, decorator),
+    vscode.languages.registerCodeLensProvider({ scheme: 'file' }, files),
     command('redline.start', async () => {
       const modes = [
         { label: 'Uncommitted changes', run: reviewUncommitted },
@@ -348,7 +349,7 @@ export function activate(context: vscode.ExtensionContext) {
     command('redline.reviewBranch', (ref?: string) => reviewBranch(typeof ref === 'string' ? ref : undefined)),
     command('redline.reviewPullRequest', (n?: number) => reviewPullRequest(typeof n === 'number' ? n : undefined)),
     command('redline.end', endSession),
-    command('redline.refresh', () => session?.refresh()),
+    command('redline.refresh', () => session?.refresh(true)),
     command('redline.nextChange', () => goToChange(1)),
     command('redline.previousChange', () => goToChange(-1)),
     command('redline.revertChange', revertChange),
@@ -395,6 +396,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Used by the integration tests.
   return {
     session: () => session,
+    filesView: files,
     hunks: (doc: vscode.TextDocument) => decorator.hunksFor(doc),
     threadCount: (doc: vscode.TextDocument) => decorator.threadCount(doc),
     insetCount: (doc: vscode.TextDocument) => decorator.insetCount(doc),

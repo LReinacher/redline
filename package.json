@@ -64,7 +64,7 @@
         { "command": "redline.start", "when": "view == redline.files && !redline.active", "group": "navigation@1" }
       ],
       "view/item/context": [
-        { "command": "redline.openNativeDiff", "when": "view == redline.files && viewItem != folder", "group": "inline" }
+        { "command": "redline.openNativeDiff", "when": "view == redline.files && (viewItem == file || viewItem == deleted)", "group": "inline" }
       ],
       "editor/title": [
         { "command": "redline.openNativeDiff", "when": "redline.active && redline.fileHasChanges", "group": "navigation" }
@@ -105,12 +105,55 @@
         "redline.codeLens": {
           "type": "boolean",
           "default": true,
-          "description": "Show a CodeLens with a Revert action above each change."
+          "description": "Show Revert actions above changes and outside-caller counts above changed symbols."
         },
         "redline.viewAsTree": {
           "type": "boolean",
           "default": false,
           "description": "Group the changed files by folder in the Redline view instead of listing them flat."
+        },
+        "redline.reviewPatterns.shape": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/*.{graphql,gql,prisma}",
+            "**/*.{entity,dto,model}.ts",
+            "**/migrations/**",
+            "**/entities/**",
+            "**/models/**",
+            "**/openapi*.{yaml,yml,json}",
+            "**/swagger*.{yaml,yml,json}"
+          ],
+          "scope": "resource",
+          "description": "Repository-relative globs for the shape review group. Supports *, **, ?, and brace alternatives. Replaces the defaults; tests take precedence over shape, then entry points. Call-graph roots do not change file groups."
+        },
+        "redline.reviewPatterns.entry": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/*.{resolver,controller}.{ts,js}",
+            "**/routes/**",
+            "**/pages/api/**",
+            "**/app/**/route.{ts,js}"
+          ],
+          "scope": "resource",
+          "description": "Repository-relative globs for the entry review group. Supports *, **, ?, and brace alternatives. Replaces the defaults; tests take precedence over shape, then entry points. Call-graph roots do not change file groups."
+        },
+        "redline.reviewPatterns.tests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/*.{test,spec}.{ts,tsx,js,jsx}",
+            "**/{test,tests,__tests__}/**"
+          ],
+          "scope": "resource",
+          "description": "Repository-relative globs for the tests review group. Supports *, **, ?, and brace alternatives. Replaces the defaults; tests take precedence over shape, then entry points. Call-graph roots do not change file groups."
         },
         "redline.wordHighlights": {
           "type": "boolean",
