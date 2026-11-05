@@ -86,6 +86,13 @@
       { "command": "redline.nextChange", "key": "f7", "when": "redline.active && editorTextFocus && !isInDiffEditor" },
       { "command": "redline.previousChange", "key": "shift+f7", "when": "redline.active && editorTextFocus && !isInDiffEditor" }
     ],
+    "colors": [
+      {
+        "id": "redline.changedCallForeground",
+        "description": "Color of calls whose target or possible implementation changed in the review.",
+        "defaults": { "dark": "#e5c07b", "light": "#8a5600", "highContrast": "#ffff00", "highContrastLight": "#7f4000" }
+      }
+    ],
     "configurationDefaults": {
       "comments.openView": "firstFileUnresolved"
     },
@@ -154,6 +161,12 @@
           ],
           "scope": "resource",
           "description": "Repository-relative globs for the tests review group. Supports *, **, ?, and brace alternatives. Replaces the defaults; tests take precedence over shape, then entry points. Call-graph roots do not change file groups."
+        },
+        "redline.changedCalls": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Color and underline only the function name at calls to functions added or modified in this review. Hover to see the changed declaration. Requires language-server call hierarchy support."
         },
         "redline.wordHighlights": {
           "type": "boolean",

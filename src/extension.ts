@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ChangedCalls } from './changedCalls';
 import { Decorator } from './decorator';
 import { ChangedFile, Hunk } from './diff';
 import { TreeNode } from './fileTree';
@@ -27,6 +28,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (choice === "Don't Show Again") void context.globalState.update('hideInsetHint', true);
       });
   });
+  const changedCalls = new ChangedCalls();
   const files = new FilesView(context.workspaceState, () => session);
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
   status.command = 'redline.files.focus';
@@ -329,6 +331,8 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     decorator,
     files,
+    changedCalls,
+    files.onDidChangeAnalysis((symbols) => changedCalls.setSymbols(symbols)),
     status,
     { dispose: endSession },
     vscode.workspace.registerTextDocumentContentProvider(BASE_SCHEME, new BaseContentProvider(() => session?.repoRoot)),
@@ -397,6 +401,7 @@ export function activate(context: vscode.ExtensionContext) {
   return {
     session: () => session,
     filesView: files,
+    changedCalls,
     hunks: (doc: vscode.TextDocument) => decorator.hunksFor(doc),
     threadCount: (doc: vscode.TextDocument) => decorator.threadCount(doc),
     insetCount: (doc: vscode.TextDocument) => decorator.insetCount(doc),

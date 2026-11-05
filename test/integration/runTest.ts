@@ -14,7 +14,7 @@ function createRepo(): string {
   git('init', '-q', '-b', 'main');
   git('config', 'user.email', 'test@example.com');
   git('config', 'user.name', 'Test');
-  write('a.ts', ['export function a() {', '  const x = 1;', '  return foo(bar);', '}', '', 'const one = 1;', 'const two = 2;', 'export const three = 3;']);
+  write('a.ts', ['export function a() {', '  const x = repo.c();', '  return foo(bar);', '}', '', 'const one = 1;', 'const two = 2;', 'export const three = 3;']);
   write('b.ts', ['export const b = 1;']);
   write('.gitignore', ['ignored.ts']);
   fs.mkdirSync(path.join(repo, 'old'));
@@ -22,12 +22,12 @@ function createRepo(): string {
   git('add', '.');
   git('commit', '-q', '-m', 'base');
   git('checkout', '-q', '-b', 'feature');
-  write('b.ts', ['export const b = 2;', 'export const c = 3;']);
+  write('b.ts', ['export const b = c();', 'export const c = 3;']);
   git('commit', '-q', '-am', 'change b');
 
   // Uncommitted work: modify a line, delete two lines, add an untracked and an ignored file, and
   // move a file with plain mv (not git mv) and edit it.
-  write('a.ts', ['export function a() {', '  const x = 1;', '  return foo(baz);', '}', '', 'export const three = 3;']);
+  write('a.ts', ['export function a() {', '  const x = repo.c();', '  return foo(baz);', '}', '', 'export const three = 3;']);
   write('c.ts', ['export const c = 1;']);
   write('ignored.ts', ['export const ignored = 1;']);
   fs.mkdirSync(path.join(repo, 'new'));

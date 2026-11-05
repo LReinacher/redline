@@ -48,6 +48,8 @@ export class FilesView implements vscode.TreeDataProvider<GuideNode>, vscode.Dis
   private progressText: string | undefined;
   private displayedSession: ReviewSession | undefined;
   private finishProgress: (() => void) | undefined;
+  private readonly symbolsChanged = new vscode.EventEmitter<Map<string, ChangedSymbol[]> | undefined>();
+  readonly onDidChangeAnalysis = this.symbolsChanged.event;
   private readonly lensesChanged = new vscode.EventEmitter<void>();
   readonly onDidChangeCodeLenses = this.lensesChanged.event;
   private readonly subscriptions: vscode.Disposable[] = [];
@@ -134,6 +136,7 @@ export class FilesView implements vscode.TreeDataProvider<GuideNode>, vscode.Dis
         }).then((symbols) => {
           if (cancelled()) return;
           this.symbols = symbols;
+          this.symbolsChanged.fire(symbols);
           this.analyzing = false;
           this.progressText = undefined;
           this.rebuild();
@@ -156,6 +159,7 @@ export class FilesView implements vscode.TreeDataProvider<GuideNode>, vscode.Dis
 
   private invalidate(): void {
     this.generation++;
+    this.symbolsChanged.fire(undefined);
     this.finishProgress?.();
     this.finishProgress = undefined;
     // Hide stale CodeLens locations immediately, but leave the review tree in place.
@@ -295,6 +299,7 @@ export class FilesView implements vscode.TreeDataProvider<GuideNode>, vscode.Dis
   dispose(): void {
     this.invalidate();
     clearTimeout(this.timer);
+    this.symbolsChanged.dispose();
     this.lensesChanged.dispose();
     this.changed.dispose();
     for (const s of this.subscriptions) s.dispose();

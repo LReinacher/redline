@@ -55,6 +55,23 @@ Without it, removed lines show as comment blocks, and the extension says so once
 - **Open File in Diff Editor** (editor title bar) opens the regular side-by-side diff against the
   same base. The extension leaves diff editors alone, since they draw their own diff.
 
+Only the function name in calls to added or modified functions gets an amber underline and text
+color; receivers such as `this.service` keep their normal syntax colors. Hover a
+marker to see the changed symbol and open its declaration. Calls from unchanged functions and
+files are marked too. A method is marked only when its own declaration/body overlaps the diff;
+changes elsewhere in its file do not qualify.
+
+For interface or abstract-method calls, Redline checks implementations reported by the language
+server for visible functions. The hover labels these as a **possible implementation**, since static
+analysis cannot establish which implementation will run. Visible-function lookups are cached for
+the current analysis snapshot. Missing markers do not prove a target is unchanged: incomplete
+call hierarchies, unsupported languages, or dynamic dispatch may leave calls unresolved. Markers
+clear during refresh, after edits, and when a review ends; the tree keeps its existing behavior.
+
+Disable this with `redline.changedCalls: false`. Customize the color using
+`workbench.colorCustomizations` → `redline.changedCallForeground`. The underline does not replace
+the diff's added/removed backgrounds, and markers are omitted in the native diff editor.
+
 ## Starting a review
 
 Run **Redline: Start Review...** or use the buttons in the Redline view.

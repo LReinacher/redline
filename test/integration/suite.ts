@@ -41,6 +41,8 @@ export async function run() {
     const c = new vscode.CallHierarchyItem(vscode.SymbolKind.Function, 'c', '', uri('c.ts'), range(0, 0), range(0, 0));
     const b = new vscode.CallHierarchyItem(vscode.SymbolKind.Function, 'b', '', uri('b.ts'), range(0, 0), range(0, 0));
     const selector = { scheme: 'file', pattern: new vscode.RelativePattern(fixtureRoot, '{a,c}.ts') };
+    const abstractMethod = new vscode.CallHierarchyItem(vscode.SymbolKind.Method, 'c', '', uri('new/d.ts'), range(0, 0), range(0, 0));
+    const unchangedMethod = new vscode.CallHierarchyItem(vscode.SymbolKind.Method, 'c', '', uri('new/d.ts'), range(1, 1), range(1, 1));
     let failIncoming = false;
     let callRequests = 0;
     let callGate: Promise<void> | undefined;
@@ -62,7 +64,19 @@ export async function run() {
             { from: b, fromRanges: [range(0, 0)] },
           ];
         },
-        provideCallHierarchyOutgoingCalls() { return []; },
+        provideCallHierarchyOutgoingCalls(item) {
+          if (failIncoming || item.name !== 'a') return [];
+          return [
+            { to: c, fromRanges: [new vscode.Range(2, 9, 2, 12)] },
+            { to: abstractMethod, fromRanges: [range(1, 1)] },
+            { to: unchangedMethod, fromRanges: [range(0, 0)] },
+          ];
+        },
+      }),
+      vscode.languages.registerImplementationProvider({ scheme: 'file', pattern: new vscode.RelativePattern(fixtureRoot, 'new/d.ts') }, {
+        provideImplementation(_doc, position) {
+          return position.line === 0 ? [new vscode.Location(c.uri, c.selectionRange)] : [];
+        },
       }),
     ];
     try {
@@ -91,6 +105,28 @@ export async function run() {
       assert.equal(callers[0].call.from.name, 'b');
       assert.equal(view.provideCodeLenses(await vscode.workspace.openTextDocument(uri('c.ts'))).length, 1);
 
+      const callerEditor = await vscode.window.showTextDocument(a.uri);
+      const marksDeadline = Date.now() + 15000;
+      while (!api.changedCalls.markers(callerEditor.document).some((m: any) => m.possible) && Date.now() < marksDeadline) await wait(50);
+      const marks = api.changedCalls.markers(callerEditor.document);
+      assert.equal(marks.length, 2, 'direct and interface calls are marked; an unchanged same-name method in a changed file stays unmarked');
+      assert.deepEqual(marks.map((m: any) => callerEditor.document.getText(m.range)).sort(), ['c', 'foo']);
+      const decorations = api.changedCalls.decorationOptions(callerEditor.document);
+      assert.equal(decorations.length, 2, 'one decoration per call despite different provider spans');
+      for (const decoration of decorations) {
+        assert.equal((decoration.hoverMessage.value.match(/Redline:/g) ?? []).length, 1);
+        assert.equal((decoration.hoverMessage.value.match(/Open changed declaration/g) ?? []).length, 1);
+      }
+      assert.ok(marks.some((m: any) => m.range.start.line === 2 && m.target.name === 'c' && !m.possible));
+      assert.ok(marks.some((m: any) => m.range.start.line === 1 && m.target.name === 'c' && m.possible));
+      const unchangedCaller = await vscode.workspace.openTextDocument(b.uri);
+      assert.equal(api.changedCalls.markers(unchangedCaller).length, 1, 'unchanged caller files also get markers');
+      const callConfig = vscode.workspace.getConfiguration('redline');
+      await callConfig.update('changedCalls', false, vscode.ConfigurationTarget.Global);
+      assert.deepEqual(api.changedCalls.markers(callerEditor.document), []);
+      await callConfig.update('changedCalls', true, vscode.ConfigurationTarget.Global);
+      assert.equal(api.changedCalls.markers(callerEditor.document).length, 2);
+
       const requestsBefore = callRequests;
       let redraws = 0;
       const subscription = view.onDidChangeTreeData(() => { redraws++; });
@@ -113,6 +149,7 @@ export async function run() {
           assert.ok(view.view.message?.includes('Tracing callers:'), `message: ${view.view.message}, requests: ${callRequests - requestsBefore}`);
           assert.equal(view.getChildren(), roots);
           assert.equal(redraws, 0);
+          assert.deepEqual(api.changedCalls.markers(callerEditor.document), [], 'refresh removes stale call markers while analysis is pending');
         } finally {
           release();
           callGate = undefined;
@@ -160,6 +197,7 @@ export async function run() {
       assert.ok(afterFailure.length > 0);
       assert.ok(afterFailure.every((n: any) => n.symbol.outside.length === 0));
       assert.equal(view.provideCodeLenses(await vscode.workspace.openTextDocument(uri('c.ts'))).length, 0);
+      assert.deepEqual(api.changedCalls.markers(callerEditor.document), [], 'failed analysis clears previous call markers');
     } finally {
       providers.forEach((provider) => provider.dispose());
     }
@@ -212,6 +250,7 @@ export async function run() {
       { start: 6, added: 0, removed: ['const one = 1;', 'const two = 2;'] },
     ]);
     assert.equal(blocks(doc), 2);
+    assert.deepEqual(api.changedCalls.markers(doc), [], 'editing clears stale call markers');
   });
 
   await step('next and previous change navigation', async () => {
@@ -274,5 +313,6 @@ export async function run() {
     await wait(700);
     assert.deepEqual(api.filesView.getChildren(), []);
     assert.deepEqual(api.filesView.provideCodeLenses(doc), []);
+    assert.deepEqual(api.changedCalls.markers(doc), []);
   });
 }
